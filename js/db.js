@@ -41,12 +41,37 @@ function getApplications() {
 // Get topper highlight entries for homepage
 function getToppers() {
   initDb();
+  if (window.ToppersDB && typeof window.ToppersDB.getLocalToppers === 'function') {
+    return window.ToppersDB.getLocalToppers() || JSON.parse(localStorage.getItem(TOPPERS_KEY)) || [];
+  }
   return JSON.parse(localStorage.getItem(TOPPERS_KEY)) || [];
 }
 
 function getTopperById(id) {
   const list = getToppers();
   return list.find(topper => topper.id === id) || null;
+}
+
+function whenToppersDbReady() {
+  return new Promise(resolve => {
+    if (window.ToppersDB && typeof window.ToppersDB.createTopper === 'function') {
+      return resolve();
+    }
+
+    let attempts = 0;
+    const waitForToppersDB = () => {
+      if (window.ToppersDB && typeof window.ToppersDB.createTopper === 'function') {
+        return resolve();
+      }
+      attempts += 1;
+      if (attempts >= 50) {
+        return resolve();
+      }
+      setTimeout(waitForToppersDB, 100);
+    };
+
+    waitForToppersDB();
+  });
 }
 
 function createTopper(entry) {
@@ -61,6 +86,32 @@ function createTopper(entry) {
   };
   list.unshift(newTopper);
   localStorage.setItem(TOPPERS_KEY, JSON.stringify(list));
+
+  if (window.ToppersDB) {
+    whenToppersDbReady().then(() => {
+      if (typeof window.ToppersDB.createTopper !== 'function') {
+        window.dispatchEvent(new Event('topperDataUpdated'));
+        return;
+      }
+
+      window.ToppersDB.createTopper(entry).then(remoteTopper => {
+        if (!remoteTopper || !remoteTopper.id) {
+          window.dispatchEvent(new Event('topperDataUpdated'));
+          return;
+        }
+        const current = JSON.parse(localStorage.getItem(TOPPERS_KEY)) || [];
+        const filtered = current.filter(topper => topper.id !== newTopper.id);
+        filtered.unshift(remoteTopper);
+        localStorage.setItem(TOPPERS_KEY, JSON.stringify(filtered));
+        window.dispatchEvent(new Event('topperDataUpdated'));
+      }).catch(() => {
+        window.dispatchEvent(new Event('topperDataUpdated'));
+      });
+    });
+  } else {
+    window.dispatchEvent(new Event('topperDataUpdated'));
+  }
+
   return newTopper;
 }
 
@@ -68,11 +119,35 @@ function deleteTopper(id) {
   let list = getToppers();
   list = list.filter(topper => topper.id !== id);
   localStorage.setItem(TOPPERS_KEY, JSON.stringify(list));
+
+  if (window.ToppersDB) {
+    whenToppersDbReady().then(() => {
+      if (typeof window.ToppersDB.deleteTopper === 'function') {
+        window.ToppersDB.deleteTopper(id).catch(() => {
+          // keep local deletion even if remote fails
+        });
+      }
+    });
+  }
+
+  window.dispatchEvent(new Event('topperDataUpdated'));
   return list;
 }
 
 function clearToppers() {
   localStorage.setItem(TOPPERS_KEY, JSON.stringify([]));
+
+  if (window.ToppersDB) {
+    whenToppersDbReady().then(() => {
+      if (typeof window.ToppersDB.clearToppers === 'function') {
+        window.ToppersDB.clearToppers().catch(() => {
+          // keep local clear even if remote clear fails
+        });
+      }
+    });
+  }
+
+  window.dispatchEvent(new Event('topperDataUpdated'));
 }
 
 // Get single application by ID
