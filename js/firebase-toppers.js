@@ -40,10 +40,25 @@ function readFallbackToppers() {
 
 function writeFallbackToppers(toppers) {
   try {
-    window.localStorage.setItem(FALLBACK_KEY, JSON.stringify(toppers));
+    window.localStorage.setItem(FALLBACK_KEY, JSON.stringify(dedupeToppers(toppers)));
   } catch (error) {
     console.warn('Unable to persist local topper backup:', error);
   }
+}
+
+function dedupeToppers(toppers) {
+  if (!Array.isArray(toppers)) return [];
+  const seen = new Set();
+  const deduped = [];
+
+  for (const topper of toppers) {
+    if (!topper || typeof topper.id !== 'string') continue;
+    if (seen.has(topper.id)) continue;
+    seen.add(topper.id);
+    deduped.push(topper);
+  }
+
+  return deduped;
 }
 
 function normalizeTopper(topper = {}, id = '') {
@@ -126,7 +141,7 @@ async function syncToppersFromRemote() {
 
     writeFallbackToppers(firestoreToppers);
     dispatchTopperUpdateEvent();
-    return firestoreToppers;
+    return readFallbackToppers();
   } catch (error) {
     console.warn('Unable to load topper highlights from Firebase, falling back to local copy:', error);
     return readFallbackToppers();
@@ -174,14 +189,14 @@ async function createTopper(entry) {
 
     await setDoc(docRef, topperRecord);
     console.info('firebase-toppers: topper saved to Firestore', topperRecord);
-    const toppers = readFallbackToppers();
-    toppers.unshift(topperRecord);
+    let toppers = readFallbackToppers();
+    toppers = [topperRecord, ...toppers.filter(t => t.id !== topperRecord.id)];
     writeFallbackToppers(toppers);
     return topperRecord;
   } catch (error) {
     console.error('firebase-toppers: failed to save topper to Firestore, storing locally instead:', error);
-    const toppers = readFallbackToppers();
-    toppers.unshift(payload);
+    let toppers = readFallbackToppers();
+    toppers = [payload, ...toppers.filter(t => t.id !== payload.id)];
     writeFallbackToppers(toppers);
     return payload;
   }
