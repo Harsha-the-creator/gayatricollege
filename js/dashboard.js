@@ -157,6 +157,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  window.addEventListener('topperDataUpdated', () => {
+    renderToppersTable();
+  });
+
   if (clearToppersBtn) {
     clearToppersBtn.addEventListener('click', () => {
       if (confirm('This will clear all topper entries displayed on the homepage. Continue?')) {
