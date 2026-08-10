@@ -139,6 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
   staticCarousels.forEach(initializeCarousel);
   buildTopperSlider();
 
+  window.addEventListener('topperDataUpdated', buildTopperSlider);
+
   // 3. Highlight Nav item on scroll
   const sections = document.querySelectorAll('section[id]');
   window.addEventListener('scroll', () => {
