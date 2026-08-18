@@ -7,21 +7,6 @@ const TOPPERS_KEY = 'homepage_toppers';
 const EMAIL_LOG_KEY = 'admissions_emails';
 const MESSAGES_LOG_KEY = 'contact_messages';
 
-function dedupeToppers(toppers) {
-  if (!Array.isArray(toppers)) return [];
-  const seen = new Set();
-  const deduped = [];
-
-  for (const topper of toppers) {
-    if (!topper || typeof topper.id !== 'string') continue;
-    if (seen.has(topper.id)) continue;
-    seen.add(topper.id);
-    deduped.push(topper);
-  }
-
-  return deduped;
-}
-
 // Initialize DB storage for the admin portal
 function initDb() {
   const existingApplications = JSON.parse(localStorage.getItem(DB_KEY) || 'null');
@@ -56,10 +41,10 @@ function getApplications() {
 // Get topper highlight entries for homepage
 function getToppers() {
   initDb();
-  const toppers = window.ToppersDB && typeof window.ToppersDB.getLocalToppers === 'function'
-    ? window.ToppersDB.getLocalToppers() || JSON.parse(localStorage.getItem(TOPPERS_KEY)) || []
-    : JSON.parse(localStorage.getItem(TOPPERS_KEY)) || [];
-  return dedupeToppers(toppers);
+  if (window.ToppersDB && typeof window.ToppersDB.getLocalToppers === 'function') {
+    return window.ToppersDB.getLocalToppers() || JSON.parse(localStorage.getItem(TOPPERS_KEY)) || [];
+  }
+  return JSON.parse(localStorage.getItem(TOPPERS_KEY)) || [];
 }
 
 function getTopperById(id) {
@@ -115,7 +100,7 @@ function createTopper(entry) {
           return;
         }
         const current = JSON.parse(localStorage.getItem(TOPPERS_KEY)) || [];
-        const filtered = current.filter(topper => topper.id !== newTopper.id && topper.id !== remoteTopper.id);
+        const filtered = current.filter(topper => topper.id !== newTopper.id);
         filtered.unshift(remoteTopper);
         localStorage.setItem(TOPPERS_KEY, JSON.stringify(filtered));
         window.dispatchEvent(new Event('topperDataUpdated'));
