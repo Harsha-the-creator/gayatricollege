@@ -40,25 +40,10 @@ function readFallbackToppers() {
 
 function writeFallbackToppers(toppers) {
   try {
-    window.localStorage.setItem(FALLBACK_KEY, JSON.stringify(dedupeToppers(toppers)));
+    window.localStorage.setItem(FALLBACK_KEY, JSON.stringify(toppers));
   } catch (error) {
     console.warn('Unable to persist local topper backup:', error);
   }
-}
-
-function dedupeToppers(toppers) {
-  if (!Array.isArray(toppers)) return [];
-  const seen = new Set();
-  const deduped = [];
-
-  for (const topper of toppers) {
-    if (!topper || typeof topper.id !== 'string') continue;
-    if (seen.has(topper.id)) continue;
-    seen.add(topper.id);
-    deduped.push(topper);
-  }
-
-  return deduped;
 }
 
 function normalizeTopper(topper = {}, id = '') {
@@ -141,7 +126,7 @@ async function syncToppersFromRemote() {
 
     writeFallbackToppers(firestoreToppers);
     dispatchTopperUpdateEvent();
-    return readFallbackToppers();
+    return firestoreToppers;
   } catch (error) {
     console.warn('Unable to load topper highlights from Firebase, falling back to local copy:', error);
     return readFallbackToppers();
@@ -189,32 +174,42 @@ async function createTopper(entry) {
 
     await setDoc(docRef, topperRecord);
     console.info('firebase-toppers: topper saved to Firestore', topperRecord);
-    let toppers = readFallbackToppers();
-    toppers = [topperRecord, ...toppers.filter(t => t.id !== topperRecord.id)];
+    const toppers = readFallbackToppers();
+    toppers.unshift(topperRecord);
     writeFallbackToppers(toppers);
     return topperRecord;
   } catch (error) {
     console.error('firebase-toppers: failed to save topper to Firestore, storing locally instead:', error);
-    let toppers = readFallbackToppers();
-    toppers = [payload, ...toppers.filter(t => t.id !== payload.id)];
+    const toppers = readFallbackToppers();
+    toppers.unshift(payload);
     writeFallbackToppers(toppers);
     return payload;
   }
 }
 
 async function deleteTopper(id) {
-  const fallbackToppers = readFallbackToppers().filter(topper => topper.id !== id);
-  writeFallbackToppers(fallbackToppers);
+  // If Firestore is available, attempt remote deletion first. Only update local fallback
+  // when remote deletion succeeds. This prevents items from reappearing when the
+  // remote delete fails (for example due to security rules).
+  if (db) {
+    try {
+      const docRef = doc(db, TOPPERS_COLLECTION, id);
+      await deleteDoc(docRef);
 
-  if (!db) return fallbackToppers;
-
-  try {
-    const docRef = doc(db, TOPPERS_COLLECTION, id);
-    await deleteDoc(docRef);
-  } catch (error) {
-    console.warn('Unable to delete topper highlight from Firebase:', error);
+      // Remove from local fallback after successful remote deletion
+      const fallbackToppers = readFallbackToppers().filter(topper => topper.id !== id);
+      writeFallbackToppers(fallbackToppers);
+      return fallbackToppers;
+    } catch (error) {
+      console.warn('Unable to delete topper highlight from Firebase:', error);
+      // Do not modify local fallback so that remote state remains authoritative.
+      return readFallbackToppers();
+    }
   }
 
+  // If Firestore isn't initialized, fall back to local-only deletion
+  const fallbackToppers = readFallbackToppers().filter(topper => topper.id !== id);
+  writeFallbackToppers(fallbackToppers);
   return fallbackToppers;
 }
 
