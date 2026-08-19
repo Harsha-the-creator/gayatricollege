@@ -48,6 +48,16 @@ The server will typically run on `http://localhost:5000` (or whichever port is d
 - **Frontend Access**: Navigate to `http://localhost:5000`
 - **Health Check**: Check the server status at `http://localhost:5000/api/health`
 
+### Deployment
+
+This app can be deployed to Netlify using the included `netlify.toml`. Set the Firebase variables
+from `.env` in Netlify's Site configuration under Environment variables. Netlify exposes them only
+to the Firebase configuration function; `.env` is not deployed. The frontend fetches configuration
+from `/.netlify/functions/firebase-config` in production.
+
+The existing `server.js` remains the local and Node-hosting backend. Use `npm start` locally or on
+Render/Railway. Do not run `generate-firebase-config.js` for Netlify deployment.
+
 ## Environment Variables
 
 You can configure the application using a `.env` file in the root directory. 
