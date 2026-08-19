@@ -6,19 +6,35 @@ import {
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { loadFirebaseConfig } from './firebase-config.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAexN8Tq8w-IWNFm8P-QmRiYctPgV0HH70",
-  authDomain: "gayatri-junior-college.firebaseapp.com",
-  projectId: "gayatri-junior-college",
-  storageBucket: "gayatri-junior-college.firebasestorage.app",
-  messagingSenderId: "348258857161",
-  appId: "1:348258857161:web:b02b30d59cc300cec65d18",
-  measurementId: "G-TJS886E4DW"
-};
+let auth = null;
+const authReady = loadFirebaseConfig()
+  .then(firebaseConfig => {
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+    return auth;
+  })
+  .catch(error => {
+    console.error('Firebase authentication setup failed:', error);
+    return null;
+  });
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+const passwordToggle = document.getElementById('togglePassword');
+const passwordInput = document.getElementById('password');
+const passwordVisibilityIcon = document.getElementById('passwordVisibilityIcon');
+
+if (passwordToggle && passwordInput && passwordVisibilityIcon) {
+  passwordToggle.addEventListener('click', () => {
+    const isVisible = passwordInput.type === 'text';
+    passwordInput.type = isVisible ? 'password' : 'text';
+    passwordToggle.setAttribute('aria-label', isVisible ? 'Show password' : 'Hide password');
+    passwordToggle.setAttribute('title', isVisible ? 'Show password' : 'Hide password');
+    passwordVisibilityIcon.innerHTML = isVisible
+      ? '<path d="M2.06 12.35a1 1 0 0 1 0-.7C3.73 7.61 7.65 5 12 5s8.27 2.61 9.94 6.65a1 1 0 0 1 0 .7C20.27 16.39 16.35 19 12 19s-8.27-2.61-9.94-6.65Z"/><circle cx="12" cy="12" r="3"/>'
+      : '<path d="M3 3l18 18"/><path d="M10.58 10.58a2 2 0 0 0 2.83 2.83"/><path d="M9.36 5.36A10.94 10.94 0 0 1 12 5c4.35 0 8.27 2.61 9.94 6.65a1 1 0 0 1 0 .7 10.98 10.98 0 0 1-4.1 4.75"/><path d="M6.61 6.61a10.98 10.98 0 0 0-4.55 5.04 1 1 0 0 0 0 .7C3.73 16.39 7.65 19 12 19c1.17 0 2.29-.2 3.32-.57"/>';
+  });
+}
 
 function showAuthFeedback(message, type = 'info') {
   const toastContainer = document.getElementById('toastContainer');
@@ -47,6 +63,13 @@ window.loginAdmin = async function () {
   msg.innerText = "";
   msg.style.color = "";
 
+  const firebaseAuth = await authReady;
+  if (!firebaseAuth) {
+    msg.style.color = "red";
+    msg.innerText = "Unable to connect to the authentication service. Start the backend on port 5000 and try again.";
+    return;
+  }
+
   try {
     // show loader and disable form while authenticating
     if (pageLoader) {
@@ -56,7 +79,7 @@ window.loginAdmin = async function () {
     if (submitBtn) submitBtn.disabled = true;
     if (forgotBtn) forgotBtn.disabled = true;
 
-    await signInWithEmailAndPassword(auth, email, password);
+    await signInWithEmailAndPassword(firebaseAuth, email, password);
     msg.style.color = "green";
     msg.innerText = "Login successful. Redirecting...";
     setTimeout(() => {
@@ -89,8 +112,15 @@ window.forgotPassword = async function () {
     return;
   }
 
+  const firebaseAuth = await authReady;
+  if (!firebaseAuth) {
+    msg.style.color = "red";
+    msg.innerText = "Unable to connect to the authentication service.";
+    return;
+  }
+
   try {
-    await sendPasswordResetEmail(auth, email);
+    await sendPasswordResetEmail(firebaseAuth, email);
     msg.style.color = "green";
     msg.innerText = "Password reset email sent. Check your inbox.";
   } catch (error) {
@@ -101,7 +131,8 @@ window.forgotPassword = async function () {
 };
 
 window.resetCurrentAdminPassword = async function () {
-  const user = auth.currentUser;
+  const firebaseAuth = await authReady;
+  const user = firebaseAuth?.currentUser;
 
   if (!user || !user.email) {
     showAuthFeedback('Please sign in again before resetting your password.', 'error');
@@ -112,7 +143,7 @@ window.resetCurrentAdminPassword = async function () {
   if (!confirmed) return;
 
   try {
-    await sendPasswordResetEmail(auth, user.email);
+    await sendPasswordResetEmail(firebaseAuth, user.email);
     showAuthFeedback('Password reset email sent to your registered admin email.', 'success');
   } catch (error) {
     console.error('Password reset failed:', error);
@@ -122,7 +153,8 @@ window.resetCurrentAdminPassword = async function () {
 
 window.logoutAdmin = async function () {
   try {
-    await signOut(auth);
+    const firebaseAuth = await authReady;
+    if (firebaseAuth) await signOut(firebaseAuth);
   } catch (error) {
     console.error('Firebase sign out failed:', error);
   }
@@ -130,13 +162,19 @@ window.logoutAdmin = async function () {
 };
 
 window.checkDashboardAuth = function () {
-  onAuthStateChanged(auth, function (user) {
+  authReady.then(firebaseAuth => {
+    if (!firebaseAuth) {
+      window.location.href = 'admin.html';
+      return;
+    }
+
+    onAuthStateChanged(firebaseAuth, function (user) {
     const currentPath = window.location.pathname;
 
     if (user && currentPath.includes('dashboard.html')) {
       const navEntries = performance.getEntriesByType('navigation');
       if (navEntries.length > 0 && navEntries[0].type === 'reload') {
-        signOut(auth).then(() => {
+        signOut(firebaseAuth).then(() => {
           window.location.href = 'admin.html';
         });
         return;
@@ -151,6 +189,7 @@ window.checkDashboardAuth = function () {
     if (user && currentPath.includes('admin.html')) {
       window.location.href = 'dashboard.html';
     }
+    });
   });
 };
 
@@ -161,7 +200,7 @@ const INACTIVITY_LIMIT = 60 * 60 * 1000; // 1 hour in milliseconds
 function resetInactivityTimer() {
   clearTimeout(inactivityTimer);
   inactivityTimer = setTimeout(() => {
-    if (auth.currentUser && window.location.pathname.includes('dashboard.html')) {
+    if (auth?.currentUser && window.location.pathname.includes('dashboard.html')) {
       alert("Session expired due to inactivity.");
       window.logoutAdmin();
     }
