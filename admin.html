@@ -88,6 +88,40 @@
       color: var(--brand-hover);
       text-align: left;
     }
+
+    .password-field {
+      position: relative;
+    }
+
+    .password-field .form-control {
+      padding-right: 3rem;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 0.75rem;
+      bottom: 0.65rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .password-toggle:hover,
+    .password-toggle:focus-visible {
+      color: var(--brand);
+    }
+
+    .password-toggle svg {
+      width: 1.15rem;
+      height: 1.15rem;
+    }
   </style>
 </head>
 
@@ -160,7 +194,7 @@
             >
           </div>
 
-          <div class="form-group">
+          <div class="form-group password-field">
             <label for="password">Password</label>
             <input
               type="password"
@@ -169,6 +203,12 @@
               placeholder="Enter administrator password"
               required
             >
+            <button type="button" class="password-toggle" id="togglePassword" aria-label="Show password" title="Show password">
+              <svg id="passwordVisibilityIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2.06 12.35a1 1 0 0 1 0-.7C3.73 7.61 7.65 5 12 5s8.27 2.61 9.94 6.65a1 1 0 0 1 0 .7C20.27 16.39 16.35 19 12 19s-8.27-2.61-9.94-6.65Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
           </div>
 
           <button
