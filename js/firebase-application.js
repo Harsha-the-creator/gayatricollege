@@ -13,16 +13,7 @@ import {
   writeBatch,
   getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAexN8Tq8w-IWNFm8P-QmRiYctPgV0HH70",
-  authDomain: "gayatri-junior-college.firebaseapp.com",
-  projectId: "gayatri-junior-college",
-  storageBucket: "gayatri-junior-college.firebasestorage.app",
-  messagingSenderId: "348258857161",
-  appId: "1:348258857161:web:b02b30d59cc300cec65d18",
-  measurementId: "G-TJS886E4DW"
-};
+import { loadFirebaseConfig } from './firebase-config.js';
 
 const APPLICATIONS_COLLECTION = 'applications';
 const FALLBACK_KEY = 'admissions_applications';
@@ -30,6 +21,7 @@ const FALLBACK_KEY = 'admissions_applications';
 let db = null;
 
 try {
+  const firebaseConfig = await loadFirebaseConfig();
   const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
   db = getFirestore(app);
 } catch (error) {
