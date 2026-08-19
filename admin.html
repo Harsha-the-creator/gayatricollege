@@ -88,40 +88,6 @@
       color: var(--brand-hover);
       text-align: left;
     }
-
-    .password-field {
-      position: relative;
-    }
-
-    .password-field .form-control {
-      padding-right: 3rem;
-    }
-
-    .password-toggle {
-      position: absolute;
-      right: 0.75rem;
-      bottom: 0.65rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 2rem;
-      height: 2rem;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-    }
-
-    .password-toggle:hover,
-    .password-toggle:focus-visible {
-      color: var(--brand);
-    }
-
-    .password-toggle svg {
-      width: 1.15rem;
-      height: 1.15rem;
-    }
   </style>
 </head>
 
@@ -140,10 +106,8 @@
   <header class="header-nav">
     <div class="container nav-container">
       <a href="index.html" class="logo-link">
-        <div class="flex-center">
-            <img src = "https://i.ibb.co/zH2qxtjm/logo.png" class="logo-icon" />
-        </div>
-        <span>GAYATRI JUNIOR & DEGREE COLLEGE</span>
+        <img src="https://i.ibb.co/zH2qxtjm/logo.png" class="logo-icon" alt="Gayatri College Logo" />
+        <span>GAYATRI JUNIOR &amp; DEGREE COLLEGE</span>
       </a>
       
       <ul class="nav-menu" id="navMenu">
@@ -153,10 +117,12 @@
         <li><a href="index.html#facilities" class="nav-link">Facilities</a></li>
         <li><a href="index.html#contact" class="nav-link">Contact</a></li>
         <li><a href="status.html" class="nav-link">Track Status</a></li>
-        <li><a href="admin.html" class="btn btn-secondary active" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Admin Portal</a></li>
-        <li><a href="apply.html" class="btn btn-primary" style="padding: 0.5rem 1.25rem; font-size: 0.875rem;">Apply Now</a></li>
       </ul>
 
+      <div class="nav-actions">
+        <a href="admin.html" class="btn btn-secondary">Admin Portal</a>
+        <a href="apply.html" class="btn btn-primary">Apply Now</a>
+      </div>
     
       <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
         <span></span>
@@ -180,7 +146,7 @@
           <strong>Authentication Failure:</strong> The username or password entered is incorrect. Please check your credentials and try again.
         </div>
 
-        <form id="adminLoginForm">
+        <form id="adminLoginForm" onsubmit="event.preventDefault(); loginAdmin();">
 
           <div class="form-group">
             <label for="email">Email Address</label>
@@ -194,7 +160,7 @@
             >
           </div>
 
-          <div class="form-group password-field">
+          <div class="form-group">
             <label for="password">Password</label>
             <input
               type="password"
@@ -203,12 +169,6 @@
               placeholder="Enter administrator password"
               required
             >
-            <button type="button" class="password-toggle" id="togglePassword" aria-label="Show password" title="Show password">
-              <svg id="passwordVisibilityIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M2.06 12.35a1 1 0 0 1 0-.7C3.73 7.61 7.65 5 12 5s8.27 2.61 9.94 6.65a1 1 0 0 1 0 .7C20.27 16.39 16.35 19 12 19s-8.27-2.61-9.94-6.65Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </button>
           </div>
 
           <button
@@ -223,7 +183,7 @@
             type="button"
             class="btn btn-secondary"
             style="width:100%;margin-top:10px;"
-            id="forgotPasswordButton"
+            onclick="forgotPassword()"
           >
             Forgot Password?
           </button>
