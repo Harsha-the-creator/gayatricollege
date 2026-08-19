@@ -12,16 +12,7 @@ import {
   getDocs,
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAexN8Tq8w-IWNFm8P-QmRiYctPgV0HH70",
-  authDomain: "gayatri-junior-college.firebaseapp.com",
-  projectId: "gayatri-junior-college",
-  storageBucket: "gayatri-junior-college.firebasestorage.app",
-  messagingSenderId: "348258857161",
-  appId: "1:348258857161:web:b02b30d59cc300cec65d18",
-  measurementId: "G-TJS886E4DW"
-};
+import { loadFirebaseConfig } from './firebase-config.js';
 
 const TOPPERS_COLLECTION = 'toppers';
 const FALLBACK_KEY = 'homepage_toppers';
@@ -61,6 +52,7 @@ async function initFirebase() {
   if (initialized) return;
 
   try {
+    const firebaseConfig = await loadFirebaseConfig();
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     try {
       getAnalytics(app);
@@ -188,28 +180,18 @@ async function createTopper(entry) {
 }
 
 async function deleteTopper(id) {
-  // If Firestore is available, attempt remote deletion first. Only update local fallback
-  // when remote deletion succeeds. This prevents items from reappearing when the
-  // remote delete fails (for example due to security rules).
-  if (db) {
-    try {
-      const docRef = doc(db, TOPPERS_COLLECTION, id);
-      await deleteDoc(docRef);
-
-      // Remove from local fallback after successful remote deletion
-      const fallbackToppers = readFallbackToppers().filter(topper => topper.id !== id);
-      writeFallbackToppers(fallbackToppers);
-      return fallbackToppers;
-    } catch (error) {
-      console.warn('Unable to delete topper highlight from Firebase:', error);
-      // Do not modify local fallback so that remote state remains authoritative.
-      return readFallbackToppers();
-    }
-  }
-
-  // If Firestore isn't initialized, fall back to local-only deletion
   const fallbackToppers = readFallbackToppers().filter(topper => topper.id !== id);
   writeFallbackToppers(fallbackToppers);
+
+  if (!db) return fallbackToppers;
+
+  try {
+    const docRef = doc(db, TOPPERS_COLLECTION, id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.warn('Unable to delete topper highlight from Firebase:', error);
+  }
+
   return fallbackToppers;
 }
 
