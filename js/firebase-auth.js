@@ -20,6 +20,22 @@ const authReady = loadFirebaseConfig()
     return null;
   });
 
+const loginForm = document.getElementById('adminLoginForm');
+const forgotPasswordButton = document.getElementById('forgotPasswordButton');
+
+if (loginForm) {
+  loginForm.addEventListener('submit', event => {
+    event.preventDefault();
+    window.loginAdmin();
+  });
+}
+
+if (forgotPasswordButton) {
+  forgotPasswordButton.addEventListener('click', () => {
+    window.forgotPassword();
+  });
+}
+
 const passwordToggle = document.getElementById('togglePassword');
 const passwordInput = document.getElementById('password');
 const passwordVisibilityIcon = document.getElementById('passwordVisibilityIcon');
@@ -58,7 +74,7 @@ window.loginAdmin = async function () {
 
   const pageLoader = document.getElementById('pageLoader');
   const submitBtn = document.querySelector('#adminLoginForm button[type="submit"]');
-  const forgotBtn = document.querySelector('#adminLoginForm button[onclick="forgotPassword()"]');
+  const forgotBtn = document.getElementById('forgotPasswordButton');
 
   msg.innerText = "";
   msg.style.color = "";
