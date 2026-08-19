@@ -13,41 +13,16 @@ import {
   getDocs,
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { loadFirebaseConfig } from './firebase-config.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAexN8Tq8w-IWNFm8P-QmRiYctPgV0HH70",
-  authDomain: "gayatri-junior-college.firebaseapp.com",
-  projectId: "gayatri-junior-college",
-  storageBucket: "gayatri-junior-college.firebasestorage.app",
-  messagingSenderId: "348258857161",
-  appId: "1:348258857161:web:b02b30d59cc300cec65d18",
-  measurementId: "G-TJS886E4DW"
-};
-
-const FALLBACK_KEY = 'student_records_fallback';
 let db = null;
 
 try {
+  const firebaseConfig = await loadFirebaseConfig();
   const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
   db = getFirestore(app);
 } catch (error) {
-  console.warn('Firebase Firestore initialization failed, using fallback storage:', error);
-}
-
-function readFallbackStudents() {
-  try {
-    return JSON.parse(window.localStorage.getItem(FALLBACK_KEY) || '[]');
-  } catch (error) {
-    return [];
-  }
-}
-
-function writeFallbackStudents(students) {
-  try {
-    window.localStorage.setItem(FALLBACK_KEY, JSON.stringify(students));
-  } catch (error) {
-    console.warn('Unable to persist fallback student records:', error);
-  }
+  console.error('Firebase Firestore initialization failed for student records:', error);
 }
 
 function normalizeStudent(student, id) {
@@ -69,15 +44,6 @@ function normalizeStudent(student, id) {
   };
 }
 
-let activeListenerCallback = null;
-
-function notifyListener() {
-  if (activeListenerCallback) {
-    const fallbackStudents = readFallbackStudents();
-    activeListenerCallback(fallbackStudents.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-  }
-}
-
 async function addStudent(studentData) {
   const payload = normalizeStudent({
     ...studentData,
@@ -85,12 +51,7 @@ async function addStudent(studentData) {
   });
 
   if (!db) {
-    payload.id = 'local-' + Date.now();
-    const fallbackStudents = readFallbackStudents();
-    fallbackStudents.unshift(payload);
-    writeFallbackStudents(fallbackStudents);
-    notifyListener();
-    return payload;
+    throw new Error('Student records are unavailable because Firebase is not connected.');
   }
 
   try {
@@ -101,21 +62,15 @@ async function addStudent(studentData) {
     await setDoc(docRef, payload);
     return payload;
   } catch (error) {
-    console.error('Firestore addStudent failed. This is likely due to Firestore Security Rules blocking writes. Error:', error);
-    payload.id = 'local-' + Date.now();
-    const fallbackStudents = readFallbackStudents();
-    fallbackStudents.unshift(payload);
-    writeFallbackStudents(fallbackStudents);
-    notifyListener();
-    return payload;
+    console.error('Firestore addStudent failed:', error);
+    throw error;
   }
 }
 
 function listenStudents(callback) {
-  activeListenerCallback = callback;
   if (!db) {
-    const fallbackStudents = readFallbackStudents();
-    callback(fallbackStudents.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+    console.error('Student records are unavailable because Firebase is not connected.');
+    callback([]);
     return () => {};
   }
 
@@ -128,29 +83,19 @@ function listenStudents(callback) {
       firestoreStudents.push(normalizeStudent(doc.data(), doc.id));
     });
 
-    const fallbackStudents = readFallbackStudents();
-    const localOnly = fallbackStudents.filter(s => s && String(s.id).startsWith('local-'));
-    const combined = [...localOnly, ...firestoreStudents];
-    combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    writeFallbackStudents(combined);
-    callback(combined);
+    callback(firestoreStudents);
   }, (error) => {
-    console.warn('Firestore student listener failed, using local fallback:', error);
-    const fallbackStudents = readFallbackStudents();
-    callback(fallbackStudents.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+    console.error('Firestore student listener failed:', error);
+    callback([]);
   });
 }
 
 async function removeStudent(id) {
   if (!id) return;
-  
-  // Always remove from local fallback storage
-  const fallbackStudents = readFallbackStudents().filter(student => student.id !== id);
-  writeFallbackStudents(fallbackStudents);
-  notifyListener();
 
-  if (!db) return;
+  if (!db) {
+    throw new Error('Student records are unavailable because Firebase is not connected.');
+  }
 
   try {
     const docRef = doc(db, 'students', id);
@@ -163,13 +108,8 @@ async function removeStudent(id) {
 async function updateStudent(id, updates) {
   if (!id) return null;
 
-  // Always update local fallback storage
-  const fallbackStudents = readFallbackStudents().map(student => student.id === id ? { ...student, ...updates } : student);
-  writeFallbackStudents(fallbackStudents);
-  notifyListener();
-
   if (!db) {
-    return { id, ...updates };
+    throw new Error('Student records are unavailable because Firebase is not connected.');
   }
 
   try {
@@ -178,15 +118,14 @@ async function updateStudent(id, updates) {
     return { id, ...updates };
   } catch (error) {
     console.error('Firestore updateStudent failed:', error);
-    return { id, ...updates };
+    throw error;
   }
 }
 
 async function clearAllStudents() {
-  writeFallbackStudents([]);
-  notifyListener();
-
-  if (!db) return;
+  if (!db) {
+    throw new Error('Student records are unavailable because Firebase is not connected.');
+  }
 
   try {
     const studentsRef = collection(db, 'students');
